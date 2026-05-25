@@ -512,8 +512,21 @@ class TaskService {
     };
 
     if (status === 'completed') {
-      updateData.completedAt = new Date();
-      updateData.pointsAwarded = pointsAwarded || task.roadmapTask?.pointsBase || 10;
+     updateData.completedAt = new Date();
+  const maxPoints = task.roadmapTask?.pointsBase || 10;
+  
+  // Validation: mentor cannot increase points above task base
+  if (Number.isFinite(pointsAwarded)) {
+    if (pointsAwarded > maxPoints) {
+      throw new ValidationError(`Points cannot exceed task base of ${maxPoints}`);
+    }
+    if (pointsAwarded < 0) {
+      throw new ValidationError('Points cannot be negative');
+    }
+    updateData.pointsAwarded = pointsAwarded;
+  } else {
+    updateData.pointsAwarded = maxPoints; // Default to task base
+  }
     } else if (status === 'revision_needed') {
       updateData.revisionCount = task.revisionCount + 1;
     }

@@ -143,10 +143,27 @@ export function useMentorTaskFeedback(taskId: string): UseMentorTaskFeedbackRetu
         setRevisionError('Revision notes are required when requesting a revision.');
         hasError = true;
       }
-      if (hasError) return;
+   // AFTER (add points validation):
+if (hasError) return;
 
-      setIsSubmitting(true);
-      try {
+   // NEW: Validate points cannot exceed task base
+if (decision === 'approve' && task?.roadmapTask) {
+  const maxPoints = task.roadmapTask.pointsBase ?? 10;
+  
+  if (pointsAwarded > maxPoints) {
+    setDecisionError(`Points cannot exceed the task base of ${maxPoints}. You can only decrease or keep it equal.`);
+    hasError = true;
+  }
+  if (pointsAwarded < 0) {
+    setDecisionError('Points cannot be negative.');
+    hasError = true;
+  }
+}
+
+if (hasError) return;
+
+setIsSubmitting(true);
+try {
         const validInlineFeedback = inlineFeedback
           .filter((item) => item.comment.trim())
           .map((item) => ({ line: 0, comment: item.comment, type: item.type }));
