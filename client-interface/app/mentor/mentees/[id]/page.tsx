@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
@@ -18,12 +17,13 @@ import {
   Award,
   ThumbsUp,
   ThumbsDown,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { useMenteeDetailPage } from '@/lib/hooks/mentor';
 import { useMenteeActivity } from '@/lib/hooks/mentor/useMenteeActivity';
 import { PageHeader, StatsCard, ProgressBar, StatusBadge } from '@/components/admin/ui';
 import { ActivityCard } from '@/components/shared/ActivityCard';
+
 
 export default function MenteeDetail() {
   const params = useParams();
@@ -43,6 +43,8 @@ export default function MenteeDetail() {
     setShowCompleteConfirm,
     handleApproveCompletion,
     handleRejectCompletion,
+    isCompletingLevel,            // ← add
+  handleCompleteLevelWithSkip,  // ← add
   } = useMenteeDetailPage(menteeId);
 
   const {
@@ -54,6 +56,8 @@ export default function MenteeDetail() {
     setDays: setActDays,
     refetch: refetchActivity,
   } = useMenteeActivity(menteeId);
+  
+
 
   if (loading) {
     return (
@@ -79,6 +83,8 @@ export default function MenteeDetail() {
   const enrollment = match.enrollment;
   const profile = mentee?.menteeProfile;
   const progress = parseFloat(enrollment?.overallProgressPercentage) || 0;
+   
+  
 
   return (
     <div className="space-y-6">
@@ -122,11 +128,11 @@ export default function MenteeDetail() {
               <Plus className="w-5 h-5" />
               Assign Task
             </button>
-            {/* Mentor directly approves completion — no self-request loop */}
+            {/* UPDATED: Complete Level button now calls new handler with task skipping */}
             {(enrollment?.status === 'active' || enrollment?.status === 'matched') && (
               <button
                 onClick={() => setShowCompleteConfirm(true)}
-                disabled={completionLoading}
+                disabled={isCompletingLevel || completionLoading}
                 className="px-4 py-2 bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 <CheckCircle2 className="w-4 h-4" />
@@ -176,10 +182,22 @@ export default function MenteeDetail() {
       )}
 
       {/* ─── Complete Level Confirmation Modal ────────────────────────── */}
+      {/* UPDATED: Modal now shows information about task skipping */}
       {showCompleteConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="text-slate-900 text-lg font-semibold mb-2">Complete This Level?</h3>
+            
+            {/* NEW: Information about incomplete tasks being skipped */}
+            {progress < 100 && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-blue-800 text-sm">
+                  <strong>{enrollment?.tasksTotal - enrollment?.tasksCompleted}</strong> incomplete task(s) will be automatically marked as <strong>&quot;skipped&quot;</strong> with reason &quot;advanced to next level&quot;.
+                </p>
+              </div>
+            )}
+            
             {progress < 100 && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -198,19 +216,18 @@ export default function MenteeDetail() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowCompleteConfirm(false)}
-                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50"
+                disabled={isCompletingLevel}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
+              {/* UPDATED: Now calls the new handler that includes task skipping */}
               <button
-                onClick={async () => {
-                  setShowCompleteConfirm(false);
-                  await handleApproveCompletion();
-                }}
-                disabled={completionLoading}
+                onClick={handleCompleteLevelWithSkip}
+                disabled={isCompletingLevel}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm flex items-center gap-2 disabled:opacity-50"
               >
-                {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {isCompletingLevel ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Yes, Complete Level
               </button>
             </div>
@@ -295,6 +312,7 @@ export default function MenteeDetail() {
           </div>
 
           {/* Tasks */}
+          {/* UPDATED: Task list now displays skipped tasks with skip reason */}
           <div className="bg-white rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -325,7 +343,12 @@ export default function MenteeDetail() {
                   {tasks.map((task: any) => (
                     <div
                       key={task.id}
-                      className="flex items-start justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition-colors cursor-pointer"
+                      className={`flex items-start justify-between p-4 rounded-xl border transition-colors cursor-pointer ${
+                        // NEW: Add styling for skipped tasks
+                        task.status === 'skipped'
+                          ? 'bg-slate-100 border-slate-300 opacity-75'
+                          : 'bg-slate-50 border-slate-200 hover:border-indigo-200'
+                      }`}
                       onClick={() => router.push(`/mentor/tasks/${task.id}`)}
                     >
                       <div className="flex-1 min-w-0 mr-3">
@@ -335,9 +358,16 @@ export default function MenteeDetail() {
                         <p className="text-slate-500 text-xs mt-1">
                           {task.enrollment?.program?.name || 'Custom Task'}
                         </p>
+                        {/* NEW: Display skip reason if task is skipped */}
+                        {task.status === 'skipped' && task.skipReason && (
+                          <p className="text-slate-600 text-xs mt-2 italic">
+                            Reason: {task.skippedReason}
+                          </p>
+                        )}
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs shrink-0 ${
+                      <span className={`px-2 py-1 rounded-full text-xs shrink-0 whitespace-nowrap ${
                         task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        task.status === 'skipped' ? 'bg-gray-200 text-gray-700' :  // NEW: Style for skipped
                         task.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
                         task.status === 'pending_review' ? 'bg-yellow-100 text-yellow-700' :
                         task.status === 'revision_needed' ? 'bg-orange-100 text-orange-700' :

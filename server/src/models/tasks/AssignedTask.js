@@ -28,9 +28,10 @@ module.exports = (sequelize, DataTypes) => {
     status: {
       type: DataTypes.STRING(20),
       defaultValue: 'assigned',
-      validate: {
-        isIn: [['not_started', 'assigned', 'in_progress', 'submitted', 'revision_needed', 'completed', 'cancelled']]
-      }
+     validate: {
+  isIn: [['not_started', 'assigned', 'in_progress', 'submitted', 'revision_needed', 'completed', 'cancelled', 'skipped']]
+}
+
     },
     assignedAt: {
       type: DataTypes.DATE,
@@ -100,6 +101,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: true,
       field: 'cancellation_reason'
+    },
+    skippedReason: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: 'skipped_reason'
     }
   }, {
     tableName: 'assigned_tasks',

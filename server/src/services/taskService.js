@@ -574,6 +574,7 @@ class TaskService {
    * Update enrollment task statistics.
    * tasksTotal is the FULL program roadmap task count (not just assigned tasks)
    * so the percentage reflects true progress through the whole program from day 1.
+   * Skipped tasks are excluded from the denominator calculation.
    * Also auto-advances week/level and marks program_completed when all done.
    */
   async updateEnrollmentTaskStats(enrollmentId) {
@@ -617,13 +618,14 @@ class TaskService {
       }]
     });
 
-    // Count non-cancelled custom tasks assigned to this enrollment so that
+    // Count non-cancelled and non-skipped custom tasks assigned to this enrollment so that
     // assigning a custom task immediately reduces the progress percentage.
+    // CHANGE: Added 'skipped' to the exclusion list
     const customTasksTotal = await models.AssignedTask.count({
       where: {
         enrollmentId,
         isCustomTask: true,
-        status: { [Op.notIn]: ['cancelled'] }
+        status: { [Op.notIn]: ['cancelled', 'skipped'] }  // <-- UPDATED: Added 'skipped'
       }
     });
 
@@ -793,10 +795,15 @@ class TaskService {
 
   /**
    * Get task statistics for mentor dashboard
+   * Excludes skipped tasks from the statistics
    */
   async getMentorTaskStats(mentorId) {
+    // CHANGE: Added filter to exclude skipped tasks
     const allTasks = await models.AssignedTask.findAll({
-      where: { mentorId }
+      where: {
+        mentorId,
+        status: { [Op.notIn]: ['skipped'] }  // <-- UPDATED: Filter out skipped tasks
+      }
     });
 
     const pendingReview = allTasks.filter(t => t.status === 'submitted').length;
@@ -824,9 +831,14 @@ class TaskService {
 
   /**
    * Get task statistics for mentee dashboard
+   * Excludes skipped tasks from the statistics
    */
   async getMenteeTaskStats(menteeId, enrollmentId) {
-    const where = { menteeId };
+    // CHANGE: Added status filter to exclude skipped tasks
+    const where = {
+      menteeId,
+      status: { [Op.notIn]: ['skipped'] }  // <-- UPDATED: Filter out skipped tasks
+    };
     if (enrollmentId) {
       where.enrollmentId = enrollmentId;
     }

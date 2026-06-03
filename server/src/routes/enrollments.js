@@ -22,5 +22,6 @@ router.post('/:id/reject-completion',  authenticate, authorize(['mentor', 'admin
 router.post('/:id/promote-next-level', authenticate, authorize(['admin']), enrollmentController.promoteToNextLevel);
 // Admin: remove (unenroll) a mentee from a program
 router.delete('/:id', authenticate, authorize(['admin']), enrollmentController.removeEnrollment);
-
+// After approve-completion route
+router.post('/:id/complete-level', authenticate, authorize(['mentor', 'admin']), enrollmentController.completeLevel);
 module.exports = router;

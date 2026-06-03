@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { models } = require('../db');
+const { models , sequelize } = require('../db');
 const { NotFoundError, ValidationError, ConflictError, ForbiddenError } = require('../utils/errors/errorTypes');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
@@ -308,7 +308,13 @@ class EnrollmentService {
    * Mentor or Admin approves the completion request.
    * Moves enrollment to level_completed or program_completed based on whether a next level exists.
    */
-  async approveCompletion(enrollmentId, approverId, approverRole) {
+/**
+ * Mentor or Admin approves the completion request.
+ * Moves enrollment to level_completed or program_completed based on whether a next level exists.
+ * Skips all incomplete tasks atomically with enrollment status update.
+ */
+async approveCompletion(enrollmentId, approverId, approverRole) {
+  return await sequelize.transaction(async (transaction) => {
     const enrollment = await models.Enrollment.findByPk(enrollmentId, {
       include: [
         {
@@ -320,8 +326,10 @@ class EnrollmentService {
             order: [['level_order', 'ASC']]
           }]
         }
-      ]
+      ],
+      transaction
     });
+    
     if (!enrollment) throw new NotFoundError('Enrollment not found');
 
     if (!['pending_completion', 'matched', 'active'].includes(enrollment.status)) {
@@ -330,7 +338,8 @@ class EnrollmentService {
 
     if (approverRole === 'mentor') {
       const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: approverId, status: 'active' }
+        where: { enrollmentId, mentorId: approverId, status: 'active' },
+        transaction
       });
       if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
     }
@@ -342,13 +351,30 @@ class EnrollmentService {
 
     const newStatus = hasNextLevel ? 'level_completed' : 'program_completed';
 
+    // SKIP ALL NON-COMPLETED TASKS IN CURRENT LEVEL (NEW CODE BLOCK)
+    if (newStatus === 'level_completed') {
+      await models.AssignedTask.update(
+        {
+          status: 'skipped',
+          skipReason: 'advanced to next level'
+        },
+        {
+          where: {
+            enrollmentId,
+            status: { [Op.notIn]: ['completed', 'cancelled', 'skipped'] }
+          },
+          transaction
+        }
+      );
+    }
+
     await enrollment.update({
       status: newStatus,
       completionApprovedAt: new Date(),
       completionApprovedBy: approverId,
       completionApprovedByRole: approverRole,
       completedAt: newStatus === 'program_completed' ? new Date() : enrollment.completedAt
-    });
+    }, { transaction });
 
     // Auto-promote: if there is a next level, immediately advance without admin manual step
     if (hasNextLevel) {
@@ -357,7 +383,7 @@ class EnrollmentService {
       // End the current active mentor-mentee match
       await models.MentorMenteeMatch.update(
         { status: 'completed', endedAt: new Date() },
-        { where: { enrollmentId, status: 'active' } }
+        { where: { enrollmentId, status: 'active' }, transaction }
       );
 
       // Advance the enrollment to the next level, awaiting a new mentor match
@@ -373,6 +399,12 @@ class EnrollmentService {
         completionApprovedBy: null,
         completionApprovedByRole: null,
         completionRejectionReason: null
+      }, { transaction });
+
+      // Get skipped task count (NEW)
+      const skippedTasksCount = await models.AssignedTask.count({
+        where: { enrollmentId, status: 'skipped' },
+        transaction
       });
 
       return {
@@ -380,18 +412,13 @@ class EnrollmentService {
         hasNextLevel: true,
         nextLevelId: nextLevel.id,
         nextLevelName: nextLevel.name,
-        autoPromoted: true
+        autoPromoted: true,
+        skippedTasksCount  // NEW FIELD
       };
     }
 
-    return {
-      enrollment: await this.getEnrollmentById(enrollmentId),
-      hasNextLevel: false,
-      nextLevelId: null,
-      nextLevelName: null,
-      autoPromoted: false
-    };
-  }
+  });
+}
 
   /**
    * Mentor or Admin rejects the completion request.
@@ -456,6 +483,7 @@ class EnrollmentService {
     }
 
     const nextLevel = levels[currentIdx + 1];
+  
 
     // End the current active mentor-mentee match
     await models.MentorMenteeMatch.update(
@@ -514,6 +542,55 @@ class EnrollmentService {
 
     return { message: 'Enrollment removed successfully' };
   }
+  /**
+ * Mentor-initiated level completion with automatic task skipping.
+ * POST /api/enrollments/:id/complete-level
+ */
+async completeLevel(enrollmentId, mentorId, mentorRole) {
+  const enrollment = await models.Enrollment.findByPk(enrollmentId);
+  if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+  if (!['active', 'matched'].includes(enrollment.status)) {
+    throw new ValidationError(`Cannot complete level — enrollment is "${enrollment.status}"`);
+  }
+
+  if (mentorRole === 'mentor') {
+    const match = await models.MentorMenteeMatch.findOne({
+      where: { enrollmentId, mentorId, status: 'active' }
+    });
+    if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+  }
+
+  // Skip all incomplete tasks — same pattern as approveCompletion
+  const [skippedTasksCount] = await models.AssignedTask.update(
+    {
+      status: 'skipped',
+      skippedReason: 'advanced to next level'
+    },
+    {
+      where: {
+        enrollmentId,
+        status: { [Op.notIn]: ['completed', 'cancelled', 'skipped'] }
+      }
+    }
+  );
+
+  await enrollment.update({
+    status: 'level_completed',
+    completionApprovedAt: new Date(),
+    completionApprovedBy: mentorId,
+    completionApprovedByRole: mentorRole,
+  });
+
+   //  Add this — recalculates progress after tasks are skipped
+  const taskService = require('./taskService');
+  await taskService.updateEnrollmentTaskStats(enrollmentId);
+
+  return {
+    enrollment: await this.getEnrollmentById(enrollmentId),
+    skippedTasksCount
+  };
+}
 }
 
 module.exports = new EnrollmentService();

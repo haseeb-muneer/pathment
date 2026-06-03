@@ -156,4 +156,17 @@ exports.removeEnrollment = catchAsync(async (req, res) => {
   res.status(200).json(successResponse(result.message, {}));
 });
 
+/**
+ * Mentor-initiated level completion with task skipping
+ * POST /api/enrollments/:id/complete-level
+ */
+exports.completeLevel = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await enrollmentService.completeLevel(id, req.user.id, req.user.role);
+  const message = result.skippedTasksCount > 0
+    ? `Level completed — ${result.skippedTasksCount} incomplete task(s) marked as skipped`
+    : 'Level completed successfully';
+  res.status(200).json(successResponse(message, result));
+});
+
 module.exports = exports;

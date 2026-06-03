@@ -19,4 +19,9 @@ export const mentorApi = {
   unsuspendUser: (id: string) => {
     return apiClient.put(`/admin/users/${id}/unsuspend`, {});
   },
+  
+// ✅ Fix
+completeLevel: async (enrollmentId: string) => {
+  return apiClient.post(`/enrollments/${enrollmentId}/complete-level`, {});
+}
 };

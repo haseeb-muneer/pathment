@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { matchingApi, enrollmentApi } from '@/lib/services/enrollment-api';
 import { taskApi } from '@/lib/services/task-api';
+import { mentorApi } from '@/lib/services/mentor-api';
 import { useAuth } from '@/lib/context/AuthContext';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ export interface UseMenteeDetailPageReturn {
   tasks: any[];
   loading: boolean;
   completionLoading: boolean;
+  isCompletingLevel: boolean;
   rejectReason: string;
   showRejectModal: boolean;
   showCompleteConfirm: boolean;
@@ -21,6 +23,7 @@ export interface UseMenteeDetailPageReturn {
   setShowCompleteConfirm: (v: boolean) => void;
   handleApproveCompletion: () => Promise<void>;
   handleRejectCompletion: () => Promise<void>;
+  handleCompleteLevelWithSkip: () => Promise<void>;
   fetchMenteeDetails: () => Promise<void>;
 }
 
@@ -31,6 +34,7 @@ export function useMenteeDetailPage(menteeId: string): UseMenteeDetailPageReturn
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [completionLoading, setCompletionLoading] = useState(false);
+  const [isCompletingLevel, setIsCompletingLevel] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
@@ -106,11 +110,34 @@ export function useMenteeDetailPage(menteeId: string): UseMenteeDetailPageReturn
     }
   }, [enrollment?.id, rejectReason, fetchMenteeDetails]);
 
+  const handleCompleteLevelWithSkip = useCallback(async () => {
+    if (!enrollment?.id) {
+      toast.error('Enrollment not found');
+      return;
+    }
+    try {
+      setIsCompletingLevel(true);
+      const response = await mentorApi.completeLevel(enrollment.id);
+      const skippedCount = (response as any)?.data?.skippedTasksCount || 0;
+      const message = skippedCount > 0
+        ? `Level completed! ${skippedCount} incomplete task(s) marked as skipped.`
+        : 'Level completed successfully!';
+      toast.success(message);
+      setShowCompleteConfirm(false);
+      setTimeout(() => fetchMenteeDetails(), 1500);
+    } catch (err: any) {
+      toast.error(extractApiErrorMessage(err, 'Failed to complete level'));
+    } finally {
+      setIsCompletingLevel(false);
+    }
+  }, [enrollment?.id, fetchMenteeDetails]);
+
   return {
     match,
     tasks,
     loading,
     completionLoading,
+    isCompletingLevel,
     rejectReason,
     showRejectModal,
     showCompleteConfirm,
@@ -119,6 +146,7 @@ export function useMenteeDetailPage(menteeId: string): UseMenteeDetailPageReturn
     setShowCompleteConfirm,
     handleApproveCompletion,
     handleRejectCompletion,
+    handleCompleteLevelWithSkip,
     fetchMenteeDetails,
   };
 }
