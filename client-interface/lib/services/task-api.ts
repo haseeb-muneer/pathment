@@ -29,10 +29,10 @@ export const taskApi = {
   getMentorTaskStats: (mentorId: string) =>
     apiClient.get(`/tasks/mentor/${mentorId}/stats`),
 
-  createCustomTask: (data: {
+   createCustomTask: (data: {
     menteeId: string;
     enrollmentId: string;
-    roadmapTaskId?: string; // Optional: assign existing roadmap task
+    roadmapTaskId?: string;
     title?: string;
     description?: string;
     type?: string;
@@ -41,8 +41,29 @@ export const taskApi = {
     pointsBase?: number;
     deliverable?: string;
     acceptanceCriteria?: string[];
-  }) =>
-    apiClient.post('/tasks/custom', data),
+    files?: File[];
+  }) => {
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'files') return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => formData.append(key, String(item)));
+      } else if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+
+       data.files?.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    return apiClient.post('/tasks/custom', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 
   reviewTask: (taskId: string, data: {
     rating: number;

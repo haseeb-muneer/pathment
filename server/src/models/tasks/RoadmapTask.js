@@ -75,9 +75,10 @@ module.exports = (sequelize, DataTypes) => {
     ]
   });
 
-  RoadmapTask.associate = (models) => {
+   RoadmapTask.associate = (models) => {
     RoadmapTask.belongsTo(models.RoadmapWeek, { foreignKey: 'roadmap_week_id', as: 'week' });
     RoadmapTask.hasMany(models.TaskResource, { foreignKey: 'roadmap_task_id', as: 'resources' });
+    RoadmapTask.hasMany(models.TaskFile, { foreignKey: 'roadmap_task_id', as: 'taskFiles' });
     RoadmapTask.hasMany(models.TaskSkill, { foreignKey: 'roadmap_task_id', as: 'taskSkills' });
     RoadmapTask.hasMany(models.AssignedTask, { foreignKey: 'roadmap_task_id', as: 'assignments' });
     RoadmapTask.hasMany(models.TaskAnalytics, { foreignKey: 'roadmap_task_id', as: 'analytics' });

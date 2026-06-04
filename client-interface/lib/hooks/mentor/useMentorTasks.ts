@@ -22,6 +22,7 @@ export interface CustomTaskFormData {
   pointsBase: number;
   deliverable: string;
   acceptanceCriteria: string[];
+  files: File[];
 }
 
 const EMPTY_FORM: CustomTaskFormData = {
@@ -35,6 +36,7 @@ const EMPTY_FORM: CustomTaskFormData = {
   pointsBase: 10,
   deliverable: '',
   acceptanceCriteria: [],
+  files: [],
 };
 
 export interface UseMentorTasksReturn {

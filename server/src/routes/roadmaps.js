@@ -4,6 +4,7 @@ const roadmapController = require('../controllers/roadmapController');
 const { authenticate, authorize } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
 const roadmapValidation = require('../validations/roadmapValidation');
+const upload = require('../middlewares/upload');
 
 /**
  * @route   POST /api/programs/:programId/levels/:levelId/roadmap/generate
@@ -123,6 +124,7 @@ router.post(
   '/weeks/:weekId/tasks',
   authenticate,
   authorize('admin', 'mentor'),
+  upload.array('files', 5),
   validate(roadmapValidation.addTask),
   roadmapController.addTask
 );

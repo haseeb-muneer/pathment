@@ -3,6 +3,7 @@ const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/err
 const { Op } = require('sequelize');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
+const { uploadTaskFiles } = require('../utils/taskFileUpload');
 
 class TaskService {
   /**
@@ -125,7 +126,7 @@ class TaskService {
   /**
    * Create custom task (mentor creates for specific mentee)
    */
-  async createCustomTask(data, mentorId) {
+    async createCustomTask(data, mentorId, files = []) {
     const {
       menteeId,
       enrollmentId,
@@ -178,6 +179,9 @@ class TaskService {
         isCustomTask: true,
         pointsBase: pointsBase || 10
       });
+            if (files.length > 0) {
+        await uploadTaskFiles(roadmapTask.id, mentorId, files);
+      }
     }
 
     // Create assigned task
@@ -354,7 +358,7 @@ class TaskService {
         {
           model: models.RoadmapTask,
           as: 'roadmapTask',
-          include: [
+         include: [
             {
               model: models.RoadmapWeek,
               as: 'week'
@@ -362,6 +366,10 @@ class TaskService {
             {
               model: models.TaskResource,
               as: 'resources'
+            },
+            {
+              model: models.TaskFile,
+              as: 'taskFiles'
             }
           ]
         },

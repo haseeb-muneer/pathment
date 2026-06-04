@@ -6,6 +6,7 @@ import {
   Search, ClipboardList, Clock, CheckCircle2, AlertCircle, Plus,
   Loader2, FileText, Star, XCircle, AlertTriangle, BookOpen, CalendarClock
 } from 'lucide-react';
+import FileUploader from '@/components/shared/FileUploader';
 import { useMentorTasks } from '@/lib/hooks/mentor';
 import { StatsCard, TabBar, StatusBadge } from '@/components/admin/ui';
 import type { Tab } from '@/components/admin/ui';
@@ -773,6 +774,21 @@ export default function MentorTasks() {
                         className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-sm mb-2">Requirement Files</label>
+                    <FileUploader
+                      files={formData.files}
+                      onFilesAdded={(newFiles) =>
+                        setFormData({ ...formData, files: [...formData.files, ...newFiles] })
+                      }
+                      onFileRemoved={(index) =>
+                        setFormData({
+                          ...formData,
+                          files: formData.files.filter((_, i) => i !== index),
+                        })
+                      }
+                    />
                   </div>
 
                   <div className="flex gap-4">

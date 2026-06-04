@@ -147,8 +147,25 @@ export const roadmapsApi = {
   },
 
   // Task operations
-  addTask: async (weekId: string, data: any) => {
-    const response = await apiClient.post<any>(`/weeks/${weekId}/tasks`, data);
+   addTask: async (weekId: string, data: any) => {
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'files') return;
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+
+    data.files?.forEach((file: File) => {
+      formData.append('files', file);
+    });
+
+        const response = await apiClient.post<any>(`/weeks/${weekId}/tasks`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

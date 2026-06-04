@@ -70,7 +70,7 @@ exports.deleteWeek = catchAsync(async (req, res) => {
 
 exports.addTask = catchAsync(async (req, res) => {
   const { weekId } = req.params;
-  const task = await roadmapService.addTask(weekId, req.body, req.user.id, req.user.role);
+  const task = await roadmapService.addTask(weekId, req.body, req.user.id, req.user.role, req.files || []);
   res.status(201).json(successResponse('Task added successfully', { task }, 201));
 });
 

@@ -40,6 +40,7 @@ export interface TaskForm {
   type: string;
   difficulty: string;
   weekId: string;
+  files: File[];
 }
 
 export interface WeekForm {
@@ -117,8 +118,8 @@ export function useProgramRoadmap(): UseProgramRoadmapReturn {
   const [selectedLevelId, setSelectedLevelIdRaw] = useState<string>(levelParam || '');
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
   const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
-  const [taskForm, setTaskForm] = useState<TaskForm>({
-    title: '', description: '', deliverable: '', taskOrder: 1, type: 'exercise', difficulty: 'medium', weekId: '',
+    const [taskForm, setTaskForm] = useState<TaskForm>({
+    title: '', description: '', deliverable: '', taskOrder: 1, type: 'exercise', difficulty: 'medium', weekId: '', files: [],
   });
   const [savingTask, setSavingTask] = useState(false);
   const [weekModal, setWeekModal] = useState<WeekModalState | null>(null);
@@ -280,14 +281,14 @@ export function useProgramRoadmap(): UseProgramRoadmapReturn {
   }, [weekForm, weekModal, roadmapId, roadmap.length, fetchRoadmap, selectedLevelId]);
 
   const openAddTask = useCallback((weekId: string, weekNumber: number, taskCount: number) => {
-    setTaskForm({ title: '', description: '', deliverable: '', taskOrder: taskCount + 1, type: 'exercise', difficulty: 'medium', weekId });
+        setTaskForm({ title: '', description: '', deliverable: '', taskOrder: taskCount + 1, type: 'exercise', difficulty: 'medium', weekId, files: [] });
     setTaskModal({ mode: 'add', weekId, weekNumber });
   }, []);
 
   const openEditTask = useCallback((task: RoadmapWeekTask, weekId: string, weekNumber: number) => {
-    setTaskForm({
+        setTaskForm({
       title: task.title, description: task.description, deliverable: task.deliverable ?? '',
-      taskOrder: task.taskOrder ?? 1, type: task.type ?? 'exercise', difficulty: task.difficulty ?? 'medium', weekId,
+      taskOrder: task.taskOrder ?? 1, type: task.type ?? 'exercise', difficulty: task.difficulty ?? 'medium', weekId, files: [],
     });
     setTaskModal({ mode: 'edit', weekId, weekNumber, task });
   }, []);
@@ -298,10 +299,11 @@ export function useProgramRoadmap(): UseProgramRoadmapReturn {
     }
     setSavingTask(true);
     try {
-      const payload = {
+                  const payload = {
         title: taskForm.title.trim(), description: taskForm.description.trim(),
-        deliverable: taskForm.deliverable.trim(), taskOrder: taskForm.taskOrder,
+        deliverable: taskForm.deliverable.trim(), orderIndex: taskForm.taskOrder,
         type: taskForm.type, difficulty: taskForm.difficulty,
+        files: taskForm.files,
       };
       if (taskModal?.mode === 'add') {
         await programManagementApi.roadmaps.addTask(taskForm.weekId, payload);

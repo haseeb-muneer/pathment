@@ -1,6 +1,7 @@
 const { models } = require('../db');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors/errorTypes');
 const groqService = require('./groqService');
+const { uploadTaskFiles } = require('../utils/taskFileUpload');
 
 class RoadmapService {
   /**
@@ -632,7 +633,7 @@ class RoadmapService {
   /**
    * Add task to week
    */
-  async addTask(weekId, data, userId, userRole) {
+   async addTask(weekId, data, userId, userRole, files = []) {
     const week = await models.RoadmapWeek.findByPk(weekId, {
       include: [
         {
@@ -652,15 +653,20 @@ class RoadmapService {
       throw new ForbiddenError('You do not have permission to add tasks');
     }
 
+         const maxTaskOrder = await models.RoadmapTask.max('taskOrder', {
+      where: { roadmapWeekId: weekId }
+    });
+
     const task = await models.RoadmapTask.create({
       roadmapWeekId: weekId,
       ...data,
-      // Map orderIndex → taskOrder (model field), auto-assign if missing
-      taskOrder: data.taskOrder || data.orderIndex ||
-        ((await models.RoadmapTask.count({ where: { roadmapWeekId: weekId } })) + 1),
-      // deliverable is NOT NULL in the model, provide default if omitted
+      taskOrder: (maxTaskOrder || 0) + 1,
       deliverable: data.deliverable || 'Complete the assigned task',
     });
+
+    if (files.length > 0) {
+      await uploadTaskFiles(task.id, userId, files);
+    }
 
     // Add resources if provided
     if (data.resources && Array.isArray(data.resources)) {

@@ -66,11 +66,12 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
     );
   }
 
-  const taskTitle = task.roadmapTask?.title || task.title || 'Untitled Task';
+    const taskTitle = task.roadmapTask?.title || task.title || 'Untitled Task';
   const taskDescription = task.roadmapTask?.description || task.description || '';
   const taskDeliverable = task.roadmapTask?.deliverable || task.deliverable;
   const acceptanceCriteria = task.roadmapTask?.acceptanceCriteria || task.acceptanceCriteria || [];
   const resources = task.roadmapTask?.resources || [];
+  const taskFiles = task.roadmapTask?.taskFiles || [];
   const latestSubmission = task.submissions?.[task.submissions.length - 1] || null;
   const feedback = latestSubmission?.feedback || [];
 
@@ -239,6 +240,27 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
                   >
                     <LinkIcon className="w-4 h-4" />
                     {resource.title}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+                {taskFiles.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-slate-700 mb-3">Task Files</h3>
+            <ul className="space-y-2">
+              {taskFiles.map((file: any) => (
+                <li key={file.id}>
+                  <a
+                    href={file.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    {file.fileName}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </li>

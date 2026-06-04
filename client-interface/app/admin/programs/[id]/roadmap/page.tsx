@@ -20,6 +20,7 @@ import {
 import { useProgramRoadmap } from '@/lib/hooks/admin';
 import { GenerateConfirmModal } from '@/components/admin/programs';
 import { ConfirmDialog } from '@/components/admin/ui';
+import FileUploader from '@/components/shared/FileUploader';
 
 export default function RoadmapGenerator() {
   const router = useRouter();
@@ -518,6 +519,25 @@ export default function RoadmapGenerator() {
                   </select>
                 </div>
               </div>
+              {taskModal.mode === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Requirement Files
+                  </label>
+                  <FileUploader
+                    files={taskForm.files}
+                    onFilesAdded={(newFiles) =>
+                      setTaskForm({ ...taskForm, files: [...taskForm.files, ...newFiles] })
+                    }
+                    onFileRemoved={(index) =>
+                      setTaskForm({
+                        ...taskForm,
+                        files: taskForm.files.filter((_, i) => i !== index),
+                      })
+                    }
+                  />
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}

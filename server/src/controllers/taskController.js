@@ -20,7 +20,7 @@ exports.autoAssignWeekTasks = catchAsync(async (req, res) => {
 exports.createCustomTask = catchAsync(async (req, res) => {
   const mentorId = req.user.id;
   
-  const task = await taskService.createCustomTask(req.body, mentorId);
+  const task = await taskService.createCustomTask(req.body, mentorId, req.files || []);
   res.status(201).json(successResponse('Custom task created successfully', { task }, 201));
 });
 

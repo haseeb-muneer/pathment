@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const taskController = require('../controllers/taskController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const upload = require('../middlewares/upload');
 
 /**
  * @route   POST /api/tasks/auto-assign
@@ -24,6 +25,7 @@ router.post(
   '/custom',
   authenticate,
   authorize(['mentor']),
+  upload.array('files', 5),
   taskController.createCustomTask
 );
 
